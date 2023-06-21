@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.feature_selection import RFECV
 from sklearn.model_selection import StratifiedKFold, train_test_split
 import json
-from balanced_data_ensemble import BalancedDataEnsemble
+from models.balanced_data_ensemble import BalancedDataEnsemble
 from utilities import parse_col_name, split_train_test_by_indices, get_models_dict, IND_COLS, LABEL, ID_COL
 from sklearn.feature_selection import SelectFromModel
 import shap
