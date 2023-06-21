@@ -63,12 +63,10 @@ def remove_extreme_vals_z_score(df, label, rel_cols, train_ids, stat_dict=None, 
 
 def remove_extreme_values(df, relevant_col, label, train_ids, stat_dict=None, is_z_score=True):
     removed_inhuman = remove_inhuman_values(df, relevant_col, label)
-    if not removed_inhuman:  # we have no info about inhuman values, so we use statistic methods
-        if is_z_score:
-            stat_dict = remove_extreme_vals_z_score(df, label, [relevant_col], train_ids, stat_dict)
-        else:
-            stat_dict = remove_extreme_vals_IQR(df, label, [relevant_col], train_ids, stat_dict)
+    if is_z_score:
+        stat_dict = remove_extreme_vals_z_score(df, label, [relevant_col], train_ids, stat_dict)
+    else:
+        stat_dict = remove_extreme_vals_IQR(df, label, [relevant_col], train_ids, stat_dict)
 
-    df.dropna(subset=[relevant_col], inplace=True)  # removing rows with null values
     stat_dict = stat_dict if stat_dict is not None else {}
     return stat_dict
