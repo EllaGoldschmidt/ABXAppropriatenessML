@@ -5,11 +5,12 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.svm import SVC
 import xgboost as xgb
 from lightgbm import LGBMClassifier
-import pandas as pd
+
 
 IND_COLS = ("identifier", "subject_id", "hadm_id")
 ID_COL = "identifier"
 LABEL = 'target'
+
 
 def parse_col_name(name):
     name = re.sub("\s\([0-9]+\)", "", name.replace("_", " "))
