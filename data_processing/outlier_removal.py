@@ -22,8 +22,7 @@ def remove_extreme_vals_IQR(df, label, relevant_cols, train_ids, stat_dict=None,
             else:
                 q_25, q_75 = stat_dict[label]["q_25"], stat_dict[label]["q_75"]
                 q_diff = stat_dict[label]["q_diff"]
-                df[col] = df[col].apply(lambda x: x if q_25-q_diff < x < q_75 + q_diff else np.nan)
-
+                df[col] = df[col].apply(lambda x: x if q_25 - q_diff < x < q_75 + q_diff else np.nan)
     else:
         stat_dict = {}
         train_df = df[df['identifier'].isin(train_ids)]
@@ -31,9 +30,9 @@ def remove_extreme_vals_IQR(df, label, relevant_cols, train_ids, stat_dict=None,
             data = train_df[col]
             q_25 = np.nanquantile(data, 0.25)
             q_75 = np.nanquantile(data, 0.75)
-            q_diff = factor*(q_75-q_25)
+            q_diff = factor*(q_75 - q_25)
             stat_dict[label] = {"q_25": q_25, "q_75": q_75, "q_diff": q_diff}
-            df[col] = df[col].apply(lambda x: x if q_25-q_diff < x < q_75 + q_diff else np.nan)
+            df[col] = df[col].apply(lambda x: x if q_25 - q_diff < x < q_75 + q_diff else np.nan)
 
     return stat_dict
 
