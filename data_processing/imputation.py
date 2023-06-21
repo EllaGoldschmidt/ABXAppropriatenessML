@@ -6,8 +6,7 @@ from sklearn.impute import KNNImputer
 
 class PenaltyImputer:
     def __init__(self, ratio, data, k):
-        # TODO check axis in the apply
-        penalties = data.apply(lambda col: PenaltyImputer.__get_null_penalty_per_col(col, ratio)).to_numpy()
+        penalties = data.apply(lambda col: PenaltyImputer.__get_null_penalty_per_col(col, ratio), axis=0).to_numpy()
         self.imp = KNNImputer(missing_values=np.nan, n_neighbors=k, weights='distance', metric=lambda X, Y, **kwds: PenaltyImputer.__knn_dist(X, Y, penalties=penalties, **kwds))
 
     @staticmethod
