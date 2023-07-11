@@ -14,6 +14,12 @@ def apply_FDR_correction(df, column, alpha):
 
 
 def get_cont_features_stats(df, cont_features, file_prefix):
+    """Apply t-test on the categorical features, applies FDR correction and saves it to a csv file.
+     :param df: dataframe with the target and the relevant features and their values.
+     :param cont_features: list of continuous features.
+     :param file_prefix: prefix to output csv file. should be the same as the one sent to get_categorical_features_stats.
+     :return list of all significant continuous features (alpha = 0.05) after FDR correction
+     """
     stats = pd.DataFrame(cont_features, columns=["feature"])
     positive, negative = df[df["target"] == 1][cont_features], df[df["target"] == 0][cont_features]
     _, stats["t-test p-value"] = ttest_ind(positive, negative, equal_var=False, nan_policy='omit')
@@ -23,7 +29,12 @@ def get_cont_features_stats(df, cont_features, file_prefix):
 
 
 def get_categorical_features_stats(df, cat_features, file_prefix):
-    """"""
+    """Apply Chi Squared test on the categorical features, applies FDR correction and saves it to a csv file.
+    :param df: dataframe with the target and the relevant features and their values.
+    :param cat_features: list of categorical features.
+    :param file_prefix: prefix to output csv file. should be the same as the one sent to get_cont_features_stats.
+    :return list of all significant categorical features (alpha = 0.05) after FDR correction
+    """
     rel_df, y = df[cat_features], df['target']
     # getting only columns with all positive values, as chi test only works with positive values
     positive_df = rel_df.loc[:, rel_df.ge(0).all()]
