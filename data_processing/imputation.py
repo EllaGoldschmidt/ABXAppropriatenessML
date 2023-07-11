@@ -5,9 +5,10 @@ from sklearn.impute import KNNImputer
 
 
 class PenaltyImputer:
-    def __init__(self, ratio, data, k):
-        penalties = data.apply(lambda col: PenaltyImputer.__get_null_penalty_per_col(col, ratio), axis=0).to_numpy()
-        self.imp = KNNImputer(missing_values=np.nan, n_neighbors=k, weights='distance', metric=lambda X, Y, **kwds: PenaltyImputer.__knn_dist(X, Y, penalties=penalties, **kwds))
+    def __init__(self, ratio, k):
+        self.k = k
+        self.ratio = ratio
+        self.imp = None # will be initialized with the fit function.
 
     @staticmethod
     def __get_null_penalty_per_col(col, ratio):
@@ -27,13 +28,17 @@ class PenaltyImputer:
         return score
 
     def fit(self, X, y=None):
+        penalties = X.apply(lambda col: PenaltyImputer.__get_null_penalty_per_col(col, self.ratio), axis=0).to_numpy()
+        self.imp = KNNImputer(missing_values=np.nan, n_neighbors=self.k, weights='distance', metric=lambda X, Y, **kwds: PenaltyImputer.__knn_dist(X, Y, penalties=penalties, **kwds))
         return self.imp.fit(X)
 
-    def fit_transform(self, X, y=None, **fit_params):
-        return self.imp.fit_transform(X,  y, **fit_params)
 
     def transform(self, X):
         return self.imp.transform(X)
+
+    def fit_transform(self, X, y=None, **fit_params):
+        self.fit(X)
+        return self.transform(X)
 
 
 class WeightedImputer:
@@ -56,3 +61,22 @@ class WeightedImputer:
 
     def transform(self, X):
         return self.imp.transform(X)
+
+
+def get_imputer(imp, k, ratio=0.1):
+    if imp == 'default':
+        return KNNImputer(missing_values=np.nan, n_neighbors=k, weights='distance')
+    elif imp == 'penalty':
+        return PenaltyImputer(ratio, k)
+    else:
+        return WeightedImputer(k)
+
+
+def fill_cat_null_values(df, cols_for_na, unknown_ethnicity="is_Other/Unknown"):
+    if unknown_ethnicity in cols_for_na:
+        cols_for_na.remove(unknown_ethnicity)
+        df[unknown_ethnicity] = df[unknown_ethnicity].fillna(1)
+    cols_to_add = [col for col in cols_for_na if col not in df.columns]
+    df = df.reindex(columns=df.columns.tolist() + cols_to_add, fill_value=0)
+    df[cols_for_na] = df[cols_for_na].fillna(0)
+    return df

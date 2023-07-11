@@ -14,6 +14,7 @@ import warnings
 
 warnings.simplefilter("ignore")
 ensemble_model_count = 2
+ENSEMBLE_SELECTION_METHODS = ['all_features', "0.75_features", '0.5_features']
 
 
 
@@ -66,7 +67,15 @@ def get_k_best_features(X, y, k=10, score_func=mutual_info_classif):
     return list(attributes_arr[best_features_mask])
 
 
-def get_feature_selection(data_file, cols, train_ids, id_col=ID_COL, ind_cols=IND_COLS, label_col=LABEL, models=(), k=20, param_dict=None, res_json=""):
+def get_ensemble_features(RFECV_features, SelectFromModel_features, k_shap_features, select_k_features):
+    all_features = sorted(list(set(RFECV_features + SelectFromModel_features + k_shap_features + select_k_features)))
+    feature_counter = Counter(RFECV_features + SelectFromModel_features + k_shap_features + select_k_features)
+    common_features_75 = [k for k, v in feature_counter.items() if v / 4 >= 0.75]
+    common_features_50 = [k for k, v in feature_counter.items() if v / 4 >= 0.5]
+    return all_features, common_features_75, common_features_50
+
+
+def get_feature_selection_dict(data_file, cols, train_ids, id_col=ID_COL, ind_cols=IND_COLS, label_col=LABEL, models=(), k=20, param_dict=None, res_json=""):
     """Creates a feature selection dict of the models, and saves it to the res_json"""
     df = pd.read_csv(data_file)
     if list(train_ids):  # we have folds
@@ -95,21 +104,47 @@ def get_feature_selection(data_file, cols, train_ids, id_col=ID_COL, ind_cols=IN
         shap_features = get_shap_best_features(lambda w: model.predict(w), X_train)
         k_shap_features = list(shap_features.iloc[:k]["column_name"])
 
-        all_features = sorted(list(set(RFECV_features + SelectFromModel_features + k_shap_features + select_k_features)))
+        all_features, common_features_75, common_features_50 = get_ensemble_features(RFECV_features, SelectFromModel_features, k_shap_features, select_k_features)
         models_features_dict[model_name] = {"all_features": all_features, "RFECV_features": RFECV_features,
-                                            "select_k_best": select_k_features,
+                                            "select_k_best": select_k_features, "shap_features": k_shap_features,
                                             "SelectFromModel_features": SelectFromModel_features,
-                                            "shap_features": k_shap_features}
-        feature_counter = Counter(RFECV_features + SelectFromModel_features + k_shap_features + select_k_features)
-        common_features_75 = [k for k, v in feature_counter.items() if v / (len(models_features_dict[model_name]) - 1) >= 0.75]
-        common_features_50 = [k for k, v in feature_counter.items() if v / (len(models_features_dict[model_name]) - 1) >= 0.5]
-        models_features_dict[model_name]["0.75_features"] = common_features_75
-        models_features_dict[model_name]["0.5_features"] = common_features_50
+                                            "0.75_features": common_features_75, "0.5_features": common_features_50}
 
     with open(res_json, "w") as f_json:
         json.dump(models_features_dict, f_json)
 
     return models_features_dict
+
+
+def get_feature_selection(X_train, y_train, model_name, features_choice, K=20, param_dict=None):
+    """Runs the feature selection method chosen"""
+    K = K if K <= len(X_train.columns) else len(X_train.columns)
+    model = get_models_dict([model_name], param_dict, default_iter_num=len(X_train))[model_name]
+    RFECV_features, SelectFromModel_features, select_k_features, k_shap_features = [], [], [], []
+
+    if model_name == "KNN":
+        model.fit(X_train, y_train)
+    else:  # KNN doesn't support them
+        if features_choice in ENSEMBLE_SELECTION_METHODS + ['RFECV_features']:
+            RFECV_features = get_RFECV_best_features(X_train, y_train, model)
+        if features_choice in ENSEMBLE_SELECTION_METHODS + ['SelectFromModel_features']:
+            SelectFromModel_features = get_SelectFromModel_best_fetures(X_train, y_train, model)
+
+    if features_choice in ENSEMBLE_SELECTION_METHODS + ['SelectFromModel_features']:
+        select_k_features = get_k_best_features(X_train, y_train, K)
+
+    model.fit(X_train, y_train)
+    if features_choice in ENSEMBLE_SELECTION_METHODS + ['shap_features']:
+        shap_features = get_shap_best_features(lambda w: model.predict(w), X_train)
+        k_shap_features = list(shap_features.iloc[:K]["column_name"])
+
+    all_features, common_features_75, common_features_50 = get_ensemble_features(RFECV_features, SelectFromModel_features, k_shap_features, select_k_features)
+    models_features_dict = {"all_features": all_features, "RFECV_features": RFECV_features,
+                                        "select_k_best": select_k_features, "shap_features": k_shap_features,
+                                        "SelectFromModel_features": SelectFromModel_features,
+                                        "0.75_features": common_features_75, "0.5_features": common_features_50}
+
+    return models_features_dict[features_choice]
 
 
 def get_shap_figure_for_final_features(data_file, model_name, ind_cols=IND_COLS, label_col=LABEL, param_dict=None, feature_json="", features_selected="", validation_file="", output_file=""):

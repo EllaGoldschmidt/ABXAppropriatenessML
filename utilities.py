@@ -27,7 +27,7 @@ def get_org_col(col):
         return col.replace("_unique_percentage", "").replace("time_from_last_","").replace("_12_hours", "").replace("_median_diff", "").replace("_coef_ratio", "").replace("_is_imputed", "").replace("_after_before_BC_ratio", "")
 
 
-def get_models_dict(models, param_dict, default_iter_num, get_funcs=False):
+def get_models_dict(models, param_dict, default_iter_num=100, get_funcs=False):
     param_dict = {} if param_dict is None else param_dict
     rf = (lambda: RandomForestClassifier(random_state=42, **param_dict["Random Forest"])) if "Random Forest" in param_dict else (lambda: RandomForestClassifier(random_state=42))
     knn = (lambda: KNeighborsClassifier(**param_dict["KNN"])) if "KNN" in param_dict else (lambda: KNeighborsClassifier())
