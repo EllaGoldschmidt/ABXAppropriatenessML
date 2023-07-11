@@ -17,6 +17,16 @@ def parse_col_name(name):
     name = re.sub(r'[^A-Za-z0-9_]+', '', name.replace(" ", "_"))
     return name
 
+def get_org_col(col):
+    """Return the name of the raw measurement that the col was created from"""
+    if "_days_" in col:
+        return re.search(".+(?=_all_days_)", col).group() if "_all_days" in col else re.search(".+(?=_[2345]_days_)", col).group()
+    if "_over_time" in col:
+        return re.search("(?<=count_).+(?=_over_time)", col).group()
+    else:
+        return col.replace("_unique_percentage", "").replace("time_from_last_","").replace("_12_hours", "").replace("_median_diff", "").replace("_coef_ratio", "").replace("_is_imputed", "").replace("_after_before_BC_ratio", "")
+
+
 def get_models_dict(models, param_dict, default_iter_num, get_funcs=False):
     param_dict = {} if param_dict is None else param_dict
     rf = (lambda: RandomForestClassifier(random_state=42, **param_dict["Random Forest"])) if "Random Forest" in param_dict else (lambda: RandomForestClassifier(random_state=42))
