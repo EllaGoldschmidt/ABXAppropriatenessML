@@ -17,6 +17,11 @@ def parse_col_name(name):
     name = re.sub(r'[^A-Za-z0-9_]+', '', name.replace(" ", "_"))
     return name
 
+
+def filter_cols_by_null_percentage(df, columns, percentage):
+    new_columns = [col for col in columns if df[col].count()/len(df) >= percentage]
+    return new_columns
+
 def get_org_col(col):
     """Return the name of the raw measurement that the col was created from"""
     if "_days_" in col:

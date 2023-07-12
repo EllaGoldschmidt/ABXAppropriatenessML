@@ -13,27 +13,31 @@ def apply_FDR_correction(df, column, alpha):
     df[column] = np.round(df[column], decimals=2)
 
 
-def get_cont_features_stats(df, cont_features, file_prefix):
-    """Apply t-test on the categorical features, applies FDR correction and saves it to a csv file.
+def get_cont_features_stats(df, cont_features, file_prefix, save_file=True):
+    """Apply t-test on the categorical features, applies FDR correction and saves it to a csv file if save_file == True.
      :param df: dataframe with the target and the relevant features and their values.
      :param cont_features: list of continuous features.
      :param file_prefix: prefix to output csv file. should be the same as the one sent to get_categorical_features_stats.
-     :return list of all significant continuous features (alpha = 0.05) after FDR correction
+     :param save_file: whether to save the stats dataframe as a csv.
+     :return stats dataframe anf list of all significant continuous features (alpha = 0.05) after FDR correction
      """
     stats = pd.DataFrame(cont_features, columns=["feature"])
     positive, negative = df[df["target"] == 1][cont_features], df[df["target"] == 0][cont_features]
     _, stats["t-test p-value"] = ttest_ind(positive, negative, equal_var=False, nan_policy='omit')
     apply_FDR_correction(stats, "t-test p-value", 0.025)
-    stats.round(2).to_csv(file_prefix + "_cont_stats.csv", index=False)
-    return list(stats[stats['t-test p-value'] < 0.05]['feature'])
+    stats = stats.round(2)
+    if save_file:
+        stats.to_csv(file_prefix + "_cont_stats.csv", index=False)
+    return stats, list(stats[stats['t-test p-value'] < 0.05]['feature'])
 
 
-def get_categorical_features_stats(df, cat_features, file_prefix):
-    """Apply Chi Squared test on the categorical features, applies FDR correction and saves it to a csv file.
+def get_categorical_features_stats(df, cat_features, file_prefix, save_file=True):
+    """Apply Chi Squared test on the categorical features, applies FDR correction and saves it to a csv file if save_file == True.
     :param df: dataframe with the target and the relevant features and their values.
     :param cat_features: list of categorical features.
     :param file_prefix: prefix to output csv file. should be the same as the one sent to get_cont_features_stats.
-    :return list of all significant categorical features (alpha = 0.05) after FDR correction
+    :param save_file: whether to save the stats dataframe as a csv.
+    :return stats dataframe and list of all significant categorical features (alpha = 0.05) after FDR correction
     """
     rel_df, y = df[cat_features], df['target']
     # getting only columns with all positive values, as chi test only works with positive values
@@ -45,5 +49,7 @@ def get_categorical_features_stats(df, cat_features, file_prefix):
     result_dict.update({positive_columns[i]: {"chi2 p-value": chi2_p_values[i]} for i in range(len(positive_columns))})
     stats = pd.DataFrame.from_dict(result_dict, orient='index').reset_index().rename(columns={"index": "feature"})
     apply_FDR_correction(stats, "chi2 p-value", 0.05)
-    stats.round(2).to_csv(file_prefix + "_categorical_stats.csv", index=False)
-    return list(stats[stats["chi2 p-value"] < 0.05]['feature'])
+    stats = stats.round(2)
+    if save_file:
+        stats.to_csv(file_prefix + "_categorical_stats.csv", index=False)
+    return stats, list(stats[stats["chi2 p-value"] < 0.05]['feature'])

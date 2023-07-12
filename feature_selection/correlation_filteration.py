@@ -1,12 +1,11 @@
 import pandas as pd
-import scipy.spatial as sp, scipy.cluster.hierarchy as hc
-import seaborn as sns
-import matplotlib.pyplot as plt
+import scipy.cluster.hierarchy as hc
 import numpy as np
 from collections import defaultdict
 from utilities import IND_COLS, get_org_col
 import warnings
 import scipy.spatial.distance as ssd
+from feature_stats.get_feature_stats import get_cont_features_stats, get_categorical_features_stats
 
 warnings.simplefilter("ignore")
 N_KEEP_CAT = 1
@@ -71,9 +70,35 @@ def filter_time_features_by_p_value(cols_to_check, pval_df, n_keep=2):
     return features_to_keep
 
 
-def filter_correlated_features(data_file, stat_files_prefix, threshold, n_keep_cont, n_keep_cat=N_KEEP_CAT, ind_cols=IND_COLS):
+def filter_correlated_features(df, cont_stats_df, cat_stats_df, threshold, n_keep_cont, n_keep_cat=N_KEEP_CAT, ind_cols=IND_COLS):
     """removes correlated features using to clustering methods - Clustering by the original raw measurement
     and using hierarchical clustering on the features' correlation matrix.
+    :param df: dataframe with the feature values.
+    :param cont_stats_df: dataframe with stats about the continuous features, as returned by get_cont_features_stats in feature_stats/get_feature_stats
+    :param cat_stats_df: dataframe with stats about the categorical features, as returned by get_categorical_features_stats in feature_stats/get_feature_stats
+    :param threshold: correlation threshold. minimal correlation needed in order for two features to be included in the same cluster
+    :param n_keep_cont: number of features to keep from the cluster of continuous features created from the same raw measurement.
+    :param n_keep_cat: number of features to keep from the cluster of categorical features created from the same raw measurement. default: N_KEEP_CAT
+    :param ind_cols: list of index columns
+    :return list of all the features that passed the two filters
+    """
+    cont_stats_df = cont_stats_df.rename(columns={'t-test p-value_exponent': 'pvalue_exponent'})
+    cat_stats_df = cat_stats_df.rename(columns={'chi2 p-value_exponent': 'pvalue_exponent'})
+    pval_df = pd.concat([cont_stats_df, cat_stats_df])[['feature', 'pvalue_exponent']]
+
+    filtered_cont_features = filter_time_features_by_p_value(cont_stats_df['feature'].tolist(), pval_df, n_keep=n_keep_cont)
+    filtered_cat_features = filter_time_features_by_p_value(cat_stats_df['feature'].tolist(), pval_df, n_keep=n_keep_cat)
+    filtered_features = filtered_cont_features + filtered_cat_features
+    corr_groups = get_correlation_clusters(df, filtered_features, threshold)
+    to_drop = filter_correlated_features_pval(pval_df, correlation_groups=corr_groups)
+    filtered_features = [col for col in filtered_features if col not in to_drop]
+    return sorted(filtered_features)
+
+
+def filter_correlated_features_from_files(data_file, stat_files_prefix, threshold, n_keep_cont, n_keep_cat=N_KEEP_CAT, ind_cols=IND_COLS):
+    """removes correlated features using to clustering methods - Clustering by the original raw measurement
+    and using hierarchical clustering on the features' correlation matrix.
+    :param data_file: path to csv with the feature values.
     :param stat_files_prefix: prefix to the feature stats files
     (as sent to get_categorical_features_stats and get_cont_features_stats in feature_stats/get_feature_stats)
     :param threshold: correlation threshold. minimal correlation needed in order for two features to be included in the same cluster
@@ -85,14 +110,30 @@ def filter_correlated_features(data_file, stat_files_prefix, threshold, n_keep_c
     :return list of all the features that passed the two filters
     """
     df = pd.read_csv(data_file, index_col=ind_cols)
-    cont_df = pd.read_csv(stat_files_prefix + "_cont_stats.csv").rename(columns={'t-test p-value_exponent': 'pvalue_exponent'})
-    cat_df =  pd.read_csv(stat_files_prefix + "_categorical_stats.csv").rename(columns={'chi2 p-value_exponent': 'pvalue_exponent'})
-    pval_df = pd.concat([cont_df, cat_df])[['feature', 'pvalue_exponent']]
+    cont_df = pd.read_csv(stat_files_prefix + "_cont_stats.csv")
+    cat_df = pd.read_csv(stat_files_prefix + "_categorical_stats.csv")
 
-    filtered_cont_features = filter_time_features_by_p_value(cont_df['feature'].tolist(), pval_df, n_keep=n_keep_cont)
-    filtered_cat_features = filter_time_features_by_p_value(cat_df['feature'].tolist(), pval_df, n_keep=n_keep_cat)
-    filtered_features = filtered_cont_features + filtered_cat_features
-    corr_groups = get_correlation_clusters(df, filtered_features, threshold)
-    to_drop = filter_correlated_features_pval(pval_df, correlation_groups=corr_groups)
-    filtered_features = [col for col in filtered_features if col not in to_drop]
-    return sorted(filtered_features)
+    filtered_features = filter_correlated_features(df, cont_df, cat_df, threshold, n_keep_cont, n_keep_cat=n_keep_cat, ind_cols=IND_COLS)
+    return filtered_features
+
+
+def filter_correlated_features_from_stats(df, cont_features, cat_features, threshold, n_keep_cont, n_keep_cat=N_KEEP_CAT):
+    """removes correlated features using to clustering methods - Clustering by the original raw measurement
+    and using hierarchical clustering on the features' correlation matrix.
+    :param df: dataframe with the feature values.
+    :param cont_features: list of continuous features
+    :param cat_features: list of categorical features
+    :param threshold: correlation threshold. minimal correlation needed in order for two features to be included in the same cluster
+    :param n_keep_cont: number of features to keep from the cluster of continuous features
+    created from the same raw measurement.
+    :param n_keep_cat: number of features to keep from the cluster of categorical features
+    created from the same raw measurement. default: N_KEEP_CAT
+    :return list of all the features that passed the two filters
+    """
+    cont_df, _ = get_cont_features_stats(df, cont_features, '', save_file=False)
+    cat_df, _ = get_categorical_features_stats(df, cat_features, '', save_file=False)
+
+    filtered_features = filter_correlated_features(df, cont_df, cat_df, threshold, n_keep_cont, n_keep_cat=n_keep_cat, ind_cols=IND_COLS)
+    return filtered_features
+
+

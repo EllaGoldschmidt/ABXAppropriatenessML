@@ -2,7 +2,7 @@
 Public repository containing code for model predicting antibiotic treatment appropriateness, as described in the manuscript "Predicting appropriateness of antibiotic treatment among ICU patients with hospital acquired infection"
 
 #### Authors:
-Ella 1*, Ella 2*, Dan Coster, Asaf Wasserman, Daniel Bernstein, Ron Shamir
+Ella 1*, Ella 2*, Dan Coster, Daniel Bernstein, Asaf Wasserman, Ron Shamir
 
 #### Modules
 The repository contains the following modules:
